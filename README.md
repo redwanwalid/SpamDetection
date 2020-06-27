@@ -7,3 +7,5 @@ The final dataset, email_v2.csv, used for analysis is also uploaded.
 .R and .Rtml has been uploaded.
 
 Detailed comments and interpretation are included in each file.
+
+The project is published in: .
