@@ -1,0 +1,1579 @@
+<html>
+
+<head>
+<title>Prediction of email spam using Classification Machine Learning Methods</title>
+</head>
+
+<body>
+
+<p>The document reports the analysis of email spam dataset hosted by Kaggle. The dataset contains the count of frequent words in email to determine if it is a spam. 
+
+The project goal is to build predictive model which can be used to identify spam email. Also, infer the relationship between the predictors and the response. The URL of the dataset is https://www.kaggle.com/balaka18/email-spam-classification-dataset-csv  . The scope of the project is to apply concepts learnt in class on the dataset. R language has been used throughout the project.
+Initially, there were 3000 predictors in the dataset. I ran out of memory due to large number of predictors. Then I tried feature selection techniques to work with the most significant features for the rest of the project. Finally, there are 30 predictors in the dataset which are which are the most common words in all the emails. The predictor values are all real numbers. There are 5172 instances, each instance for each email. For each instance, the count of each predictor (column) in that email (instance) is stored in the respective cells. The information regarding all the emails are stored in a data frame.
+At first, I load all the required libraries. </p>
+
+<!--begin.rcode
+library(readxl)
+library(xlsx)
+library(readr)
+library(psych)
+library(pastecs)
+library(caret)
+library(e1071)
+library(GGally)
+library(ggplot2)
+library(gridExtra)
+library(grid)
+library(tidyverse)
+library(ggthemes)
+library(gridExtra)
+library(corrplot)
+library(factoextra)
+library(rpart)
+library(rpart.plot)
+library(gplots)
+end.rcode-->
+
+<p>I read the data from a csv file and attach to the project. The R function attach() Is used to attach the project for ease of accessibility.</p>
+
+<!--begin.rcode 
+data = read_csv("email_v2.csv")
+attach(data)
+end.rcode-->
+
+
+
+<!--begin.rcode 
+names(data)
+end.rcode-->
+
+
+
+
+<!--begin.rcode 
+head(data)
+end.rcode-->
+
+
+
+<!--begin.rcode 
+dim(data)
+end.rcode-->
+
+
+<!--begin.rcode 
+summary(data)
+end.rcode-->
+
+
+<!--begin.rcode 
+cor(data[,-31])
+end.rcode-->
+
+
+<!--begin.rcode 
+##Label and Factorize Outcome Variable
+#mutate outcome variable
+data = data %>%
+  mutate(
+    #label Prediction Column
+    Prediction = case_when(
+      Prediction == 0 ~ "non-spam",
+      Prediction == 1 ~ "spam"
+    ),
+    
+    #factorize outcome column
+    Prediction = as.factor(Prediction)
+    
+  )
+
+str(data)
+
+end.rcode-->
+
+
+<!--begin.rcode fig.width=15, fig.height=15
+##Visualizing the Distribution Difference with Density Plots##
+#Define Predictor Variables
+predictor_variables = setdiff(colnames(data), Prediction)
+
+#initialize an empty list to store plots
+plot_list = list()
+
+#set plot index
+i = 1
+
+#create plot and fill plot list
+for (predictor_variable in predictor_variables) {
+  plot = ggplot(data) +
+    geom_density(aes_string(x = predictor_variable, fill = "Prediction"), alpha = 0.5)
+  plot_list[[i]] = plot
+  i = i + 1
+  
+}
+
+#display plot
+do.call ("grid.arrange", c(plot_list, ncol = 3))
+end.rcode-->
+
+
+<!--begin.rcode fig.width=15, fig.height=15
+pairs(data,col=data$Prediction)
+end.rcode-->
+
+
+
+<!--begin.rcode fig.width=15, fig.height=15
+ggpairs(data = data[1:30],
+        title = "Electricity data Correlation Plot",
+        upper = list(continuous = wrap("cor", size = 5)), 
+        lower = list(continuous = "smooth")
+)
+end.rcode-->
+
+
+<!--begin.rcode fig.width=15, fig.height=15
+#Electric Data Frequency Histogram
+
+# Density & Frequency analysis with the Histogram,
+# will 
+willl <- ggplot(data=data, aes(x=will))+
+  geom_histogram(binwidth=0.2, color="black", aes(fill=Prediction)) + 
+  xlab("Will") +  
+  ylab("Frequency") + 
+  theme(legend.position="none")+
+  ggtitle("Histogram of Sepal Length")+
+  geom_vline(data=data, aes(xintercept = mean(will)),linetype="dashed",color="grey")
+
+# gas
+gasl <- ggplot(data=data, aes(x=gas))+
+  geom_histogram(binwidth=0.2, color="black", aes(fill=Prediction)) + 
+  xlab("gas") +  
+  ylab("Frequency") + 
+  theme(legend.position="none")+
+  ggtitle("Histogram of Sepal Length")+
+  geom_vline(data=data, aes(xintercept = mean(gas)),linetype="dashed",color="grey")
+
+#deal
+deall <- ggplot(data=data, aes(x=deal))+
+  geom_histogram(binwidth=0.2, color="black", aes(fill=Prediction)) + 
+  xlab("deal") +  
+  ylab("Frequency") + 
+  theme(legend.position="none")+
+  ggtitle("Histogram of Sepal Length")+
+  geom_vline(data=data, aes(xintercept = mean(deal)),linetype="dashed",color="grey")
+
+#meter
+meterl <- ggplot(data=data, aes(x=meter))+
+  geom_histogram(binwidth=0.2, color="black", aes(fill=Prediction)) + 
+  xlab("meter") +  
+  ylab("Frequency") + 
+  theme(legend.position="none")+
+  ggtitle("Histogram of Sepal Length")+
+  geom_vline(data=data, aes(xintercept = mean(meter)),linetype="dashed",color="grey")
+
+#please
+pleasel <- ggplot(data=data, aes(x=please))+
+  geom_histogram(binwidth=0.2, color="black", aes(fill=Prediction)) + 
+  xlab("please") +  
+  ylab("Frequency") + 
+  theme(legend.position="none")+
+  ggtitle("Histogram of Sepal Length")+
+  geom_vline(data=data, aes(xintercept = mean(please)),linetype="dashed",color="grey")
+
+#attached
+attachedl <- ggplot(data=data, aes(x=attached))+
+  geom_histogram(binwidth=0.2, color="black", aes(fill=Prediction)) + 
+  xlab("attached") +  
+  ylab("Frequency") + 
+  theme(legend.position="none")+
+  ggtitle("Histogram of Sepal Length")+
+  geom_vline(data=data, aes(xintercept = mean(attached)),linetype="dashed",color="grey")
+
+#day
+dayl <- ggplot(data=data, aes(x=day))+
+  geom_histogram(binwidth=0.2, color="black", aes(fill=Prediction)) + 
+  xlab("day") +  
+  ylab("Frequency") + 
+  theme(legend.position="none")+
+  ggtitle("Histogram of Sepal Length")+
+  geom_vline(data=data, aes(xintercept = mean(day)),linetype="dashed",color="grey")
+
+#only
+onlyl <- ggplot(data=data, aes(x=only))+
+  geom_histogram(binwidth=0.2, color="black", aes(fill=Prediction)) + 
+  xlab("only") +  
+  ylab("Frequency") + 
+  theme(legend.position="none")+
+  ggtitle("Histogram of Sepal Length")+
+  geom_vline(data=data, aes(xintercept = mean(only)),linetype="dashed",color="grey")
+
+#http
+httpl <- ggplot(data=data, aes(x=http))+
+  geom_histogram(binwidth=0.2, color="black", aes(fill=Prediction)) + 
+  xlab("http") +  
+  ylab("Frequency") + 
+  theme(legend.position="none")+
+  ggtitle("Histogram of Sepal Length")+
+  geom_vline(data=data, aes(xintercept = mean(http)),linetype="dashed",color="grey")
+
+#volume
+volumel <- ggplot(data=data, aes(x=volume))+
+  geom_histogram(binwidth=0.2, color="black", aes(fill=Prediction)) + 
+  xlab("volume") +  
+  ylab("Frequency") + 
+  theme(legend.position="none")+
+  ggtitle("Histogram of Sepal Length")+
+  geom_vline(data=data, aes(xintercept = mean(volume)),linetype="dashed",color="grey")
+
+#contract
+contractl <- ggplot(data=data, aes(x=contract))+
+  geom_histogram(binwidth=0.2, color="black", aes(fill=Prediction)) + 
+  xlab("contract") +  
+  ylab("Frequency") + 
+  theme(legend.position="none")+
+  ggtitle("Histogram of Sepal Length")+
+  geom_vline(data=data, aes(xintercept = mean(contract)),linetype="dashed",color="grey")
+
+#texas
+texasl <- ggplot(data=data, aes(x=texas))+
+  geom_histogram(binwidth=0.2, color="black", aes(fill=Prediction)) + 
+  xlab("texas") +  
+  ylab("Frequency") + 
+  theme(legend.position="none")+
+  ggtitle("Histogram of Sepal Length")+
+  geom_vline(data=data, aes(xintercept = mean(texas)),linetype="dashed",color="grey")
+
+#nom
+noml <- ggplot(data=data, aes(x=nom))+
+  geom_histogram(binwidth=0.2, color="black", aes(fill=Prediction)) + 
+  xlab("nom") +  
+  ylab("Frequency") + 
+  theme(legend.position="none")+
+  ggtitle("Histogram of Sepal Length")+
+  geom_vline(data=data, aes(xintercept = mean(nom)),linetype="dashed",color="grey")
+
+#questions
+questionsl <- ggplot(data=data, aes(x=questions))+
+  geom_histogram(binwidth=0.2, color="black", aes(fill=Prediction)) + 
+  xlab("questions") +  
+  ylab("Frequency") + 
+  theme(legend.position="none")+
+  ggtitle("Histogram of Sepal Length")+
+  geom_vline(data=data, aes(xintercept = mean(questions)),linetype="dashed",color="grey")
+
+#change
+changel <- ggplot(data=data, aes(x=change))+
+  geom_histogram(binwidth=0.2, color="black", aes(fill=Prediction)) + 
+  xlab("change") +  
+  ylab("Frequency") + 
+  theme(legend.position="none")+
+  ggtitle("Histogram of Sepal Length")+
+  geom_vline(data=data, aes(xintercept = mean(change)),linetype="dashed",color="grey")
+
+#thanks
+thanksl <- ggplot(data=data, aes(x=thanks))+
+  geom_histogram(binwidth=0.2, color="black", aes(fill=Prediction)) + 
+  xlab("thanks") +  
+  ylab("Frequency") + 
+  theme(legend.position="none")+
+  ggtitle("Histogram of Sepal Length")+
+  geom_vline(data=data, aes(xintercept = mean(thanks)),linetype="dashed",color="grey")
+
+#money
+moneyl <- ggplot(data=data, aes(x=money))+
+  geom_histogram(binwidth=0.2, color="black", aes(fill=Prediction)) + 
+  xlab("money") +  
+  ylab("Frequency") + 
+  theme(legend.position="none")+
+  ggtitle("Histogram of Sepal Length")+
+  geom_vline(data=data, aes(xintercept = mean(money)),linetype="dashed",color="grey")
+
+#rate
+ratel <- ggplot(data=data, aes(x=rate))+
+  geom_histogram(binwidth=0.2, color="black", aes(fill=Prediction)) + 
+  xlab("rate") +  
+  ylab("Frequency") + 
+  theme(legend.position="none")+
+  ggtitle("Histogram of Sepal Length")+
+  geom_vline(data=data, aes(xintercept = mean(rate)),linetype="dashed",color="grey")
+
+#best
+bestl <- ggplot(data=data, aes(x=best))+
+  geom_histogram(binwidth=0.2, color="black", aes(fill=Prediction)) + 
+  xlab("best") +  
+  ylab("Frequency") + 
+  theme(legend.position="none")+
+  ggtitle("Histogram of Sepal Length")+
+  geom_vline(data=data, aes(xintercept = mean(best)),linetype="dashed",color="grey")
+
+#houston
+houstonl <- ggplot(data=data, aes(x=houston))+
+  geom_histogram(binwidth=0.2, color="black", aes(fill=Prediction)) + 
+  xlab("houston") +  
+  ylab("Frequency") + 
+  theme(legend.position="none")+
+  ggtitle("Histogram of Sepal Length")+
+  geom_vline(data=data, aes(xintercept = mean(houston)),linetype="dashed",color="grey")
+
+#feb
+febl <- ggplot(data=data, aes(x=feb))+
+  geom_histogram(binwidth=0.2, color="black", aes(fill=Prediction)) + 
+  xlab("feb") +  
+  ylab("Frequency") + 
+  theme(legend.position="none")+
+  ggtitle("Histogram of Sepal Length")+
+  geom_vline(data=data, aes(xintercept = mean(feb)),linetype="dashed",color="grey")
+
+#prices
+pricesl <- ggplot(data=data, aes(x=prices))+
+  geom_histogram(binwidth=0.2, color="black", aes(fill=Prediction)) + 
+  xlab("prices") +  
+  ylab("Frequency") + 
+  theme(legend.position="none")+
+  ggtitle("Histogram of Sepal Length")+
+  geom_vline(data=data, aes(xintercept = mean(prices)),linetype="dashed",color="grey")
+
+#move
+movel <- ggplot(data=data, aes(x=move))+
+  geom_histogram(binwidth=0.2, color="black", aes(fill=Prediction)) + 
+  xlab("move") +  
+  ylab("Frequency") + 
+  theme(legend.position="none")+
+  ggtitle("Histogram of Sepal Length")+
+  geom_vline(data=data, aes(xintercept = mean(move)),linetype="dashed",color="grey")
+
+#neon
+neonl <- ggplot(data=data, aes(x=neon))+
+  geom_histogram(binwidth=0.2, color="black", aes(fill=Prediction)) + 
+  xlab("neon") +  
+  ylab("Frequency") + 
+  theme(legend.position="none")+
+  ggtitle("Histogram of Sepal Length")+
+  geom_vline(data=data, aes(xintercept = mean(neon)),linetype="dashed",color="grey")
+
+#nor
+norl <- ggplot(data=data, aes(x=nor))+
+  geom_histogram(binwidth=0.2, color="black", aes(fill=Prediction)) + 
+  xlab("nor") +  
+  ylab("Frequency") + 
+  theme(legend.position="none")+
+  ggtitle("Histogram of Sepal Length")+
+  geom_vline(data=data, aes(xintercept = mean(nor)),linetype="dashed",color="grey")
+
+#dr
+drl <- ggplot(data=data, aes(x=dr))+
+  geom_histogram(binwidth=0.2, color="black", aes(fill=Prediction)) + 
+  xlab("dr") +  
+  ylab("Frequency") + 
+  theme(legend.position="none")+
+  ggtitle("Histogram of Sepal Length")+
+  geom_vline(data=data, aes(xintercept = mean(dr)),linetype="dashed",color="grey")
+
+#z
+zl <- ggplot(data=data, aes(x=z))+
+  geom_histogram(binwidth=0.2, color="black", aes(fill=Prediction)) + 
+  xlab("z") +  
+  ylab("Frequency") + 
+  theme(legend.position="none")+
+  ggtitle("Histogram of Sepal Length")+
+  geom_vline(data=data, aes(xintercept = mean(z)),linetype="dashed",color="grey")
+
+#gra
+gral <- ggplot(data=data, aes(x=gra))+
+  geom_histogram(binwidth=0.2, color="black", aes(fill=Prediction)) + 
+  xlab("gra") +  
+  ylab("Frequency") + 
+  theme(legend.position="none")+
+  ggtitle("Histogram of Sepal Length")+
+  geom_vline(data=data, aes(xintercept = mean(gra)),linetype="dashed",color="grey")
+
+#rev
+revl <- ggplot(data=data, aes(x=rev))+
+  geom_histogram(binwidth=0.2, color="black", aes(fill=Prediction)) + 
+  xlab("rev") +  
+  ylab("Frequency") + 
+  theme(legend.position="none")+
+  ggtitle("Histogram of Sepal Length")+
+  geom_vline(data=data, aes(xintercept = mean(rev)),linetype="dashed",color="grey")
+
+#alt
+altl <- ggplot(data=data, aes(x=alt))+
+  geom_histogram(binwidth=0.2, color="black", aes(fill=Prediction)) + 
+  xlab("alt") +  
+  ylab("Frequency") + 
+  theme(legend.position="none")+
+  ggtitle("Histogram of Sepal Length")+
+  geom_vline(data=data, aes(xintercept = mean(alt)),linetype="dashed",color="grey")
+
+
+# Plot all visualizations
+#plot not good, need to fix
+grid.arrange(willl + ggtitle(""),
+             gasl + ggtitle(""),
+             deall + ggtitle(""),
+             meterl + ggtitle(""),
+             pleasel + ggtitle(""),
+             attachedl + ggtitle(""),
+             dayl + ggtitle(""),
+             onlyl + ggtitle(""),
+             httpl + ggtitle(""),
+             volumel + ggtitle(""),
+             contractl + ggtitle(""),
+             texasl + ggtitle(""),
+             noml + ggtitle(""),
+             questionsl + ggtitle(""),
+             changel + ggtitle(""),
+             thanksl + ggtitle(""),
+             moneyl + ggtitle(""),
+             ratel + ggtitle(""),
+             bestl + ggtitle(""),
+             houstonl + ggtitle(""),
+             febl + ggtitle(""),
+             pricesl + ggtitle(""),
+             movel + ggtitle(""),
+             neonl + ggtitle(""),
+             norl + ggtitle(""),
+             drl + ggtitle(""),
+             zl + ggtitle(""),
+             gral + ggtitle(""),
+             revl + ggtitle(""),
+             altl + ggtitle(""),
+             nrow = 7,
+             top = textGrob("Electric Data Frequency Histogram", 
+                            gp=gpar(fontsize=8))
+)
+
+
+
+end.rcode-->
+
+
+
+<!--begin.rcode fig.width=15, fig.height=15
+
+#Boxplots
+
+#will
+willSL <- ggplot(data=data, aes(Prediction,will,fill=Prediction)) + 
+  geom_boxplot()+
+  scale_y_continuous("will", breaks= seq(0,300, by=.5))+
+  theme(legend.position="none")
+
+#gas
+gasSL <- ggplot(data=data, aes(Prediction,gas,fill=Prediction)) + 
+  geom_boxplot()+
+  scale_y_continuous("gas", breaks= seq(0,300, by=.5))+
+  theme(legend.position="none")
+
+#deal
+dealSL <- ggplot(data=data, aes(Prediction,deal,fill=Prediction)) + 
+  geom_boxplot()+
+  scale_y_continuous("deal", breaks= seq(0,300, by=.5))+
+  theme(legend.position="none")
+
+#meter
+meterSL <- ggplot(data=data, aes(Prediction,meter,fill=Prediction)) + 
+  geom_boxplot()+
+  scale_y_continuous("meter", breaks= seq(0,300, by=.5))+
+  theme(legend.position="none")
+
+#please
+pleaseSL <- ggplot(data=data, aes(Prediction,please,fill=Prediction)) + 
+  geom_boxplot()+
+  scale_y_continuous("please", breaks= seq(0,300, by=.5))+
+  theme(legend.position="none")
+
+
+#attached
+attachedSL <- ggplot(data=data, aes(Prediction,attached,fill=Prediction)) + 
+  geom_boxplot()+
+  scale_y_continuous("attached", breaks= seq(0,300, by=.5))+
+  theme(legend.position="none")
+
+#day
+daySL <- ggplot(data=data, aes(Prediction,day,fill=Prediction)) + 
+  geom_boxplot()+
+  scale_y_continuous("day", breaks= seq(0,300, by=.5))+
+  theme(legend.position="none")
+
+#only
+onlySL <- ggplot(data=data, aes(Prediction,only,fill=Prediction)) + 
+  geom_boxplot()+
+  scale_y_continuous("only", breaks= seq(0,300, by=.5))+
+  theme(legend.position="none")
+
+#http
+httpSL <- ggplot(data=data, aes(Prediction,http,fill=Prediction)) + 
+  geom_boxplot()+
+  scale_y_continuous("http", breaks= seq(0,300, by=.5))+
+  theme(legend.position="none")
+
+#volume
+volumeSL <- ggplot(data=data, aes(Prediction,volume,fill=Prediction)) + 
+  geom_boxplot()+
+  scale_y_continuous("volume", breaks= seq(0,300, by=.5))+
+  theme(legend.position="none")
+
+#contract
+contractSL <- ggplot(data=data, aes(Prediction,contract,fill=Prediction)) + 
+  geom_boxplot()+
+  scale_y_continuous("contract", breaks= seq(0,300, by=.5))+
+  theme(legend.position="none")
+
+#texas
+texasSL <- ggplot(data=data, aes(Prediction,texas,fill=Prediction)) + 
+  geom_boxplot()+
+  scale_y_continuous("texas", breaks= seq(0,300, by=.5))+
+  theme(legend.position="none")
+
+#nom
+nomSL <- ggplot(data=data, aes(Prediction,nom,fill=Prediction)) + 
+  geom_boxplot()+
+  scale_y_continuous("nom", breaks= seq(0,300, by=.5))+
+  theme(legend.position="none")
+
+#questions
+questionsSL <- ggplot(data=data, aes(Prediction,questions,fill=Prediction)) + 
+  geom_boxplot()+
+  scale_y_continuous("questions", breaks= seq(0,300, by=.5))+
+  theme(legend.position="none")
+
+#change
+changeSL <- ggplot(data=data, aes(Prediction,change,fill=Prediction)) + 
+  geom_boxplot()+
+  scale_y_continuous("change", breaks= seq(0,300, by=.5))+
+  theme(legend.position="none")
+
+#thanks
+thanksSL <- ggplot(data=data, aes(Prediction,thanks,fill=Prediction)) + 
+  geom_boxplot()+
+  scale_y_continuous("thanks", breaks= seq(0,300, by=.5))+
+  theme(legend.position="none")
+
+#money
+moneySL <- ggplot(data=data, aes(Prediction,money,fill=Prediction)) + 
+  geom_boxplot()+
+  scale_y_continuous("money", breaks= seq(0,300, by=.5))+
+  theme(legend.position="none")
+
+#rate
+rateSL <- ggplot(data=data, aes(Prediction,rate,fill=Prediction)) + 
+  geom_boxplot()+
+  scale_y_continuous("rate", breaks= seq(0,300, by=.5))+
+  theme(legend.position="none")
+
+#best
+bestSL <- ggplot(data=data, aes(Prediction,best,fill=Prediction)) + 
+  geom_boxplot()+
+  scale_y_continuous("best", breaks= seq(0,300, by=.5))+
+  theme(legend.position="none")
+
+#houston
+houstonSL <- ggplot(data=data, aes(Prediction,houston,fill=Prediction)) + 
+  geom_boxplot()+
+  scale_y_continuous("houston", breaks= seq(0,300, by=.5))+
+  theme(legend.position="none")
+
+#feb
+febSL <- ggplot(data=data, aes(Prediction,feb,fill=Prediction)) + 
+  geom_boxplot()+
+  scale_y_continuous("feb", breaks= seq(0,300, by=.5))+
+  theme(legend.position="none")
+
+#prices
+pricesSL <- ggplot(data=data, aes(Prediction,prices,fill=Prediction)) + 
+  geom_boxplot()+
+  scale_y_continuous("prices", breaks= seq(0,300, by=.5))+
+  theme(legend.position="none")
+
+#move
+moveSL <- ggplot(data=data, aes(Prediction,move,fill=Prediction)) + 
+  geom_boxplot()+
+  scale_y_continuous("move", breaks= seq(0,300, by=.5))+
+  theme(legend.position="none")
+
+#neon
+neonSL <- ggplot(data=data, aes(Prediction,neon,fill=Prediction)) + 
+  geom_boxplot()+
+  scale_y_continuous("neon", breaks= seq(0,300, by=.5))+
+  theme(legend.position="none")
+
+#nor
+norSL <- ggplot(data=data, aes(Prediction,nor,fill=Prediction)) + 
+  geom_boxplot()+
+  scale_y_continuous("nor", breaks= seq(0,300, by=.5))+
+  theme(legend.position="none")
+
+#dr
+drSL <- ggplot(data=data, aes(Prediction,dr,fill=Prediction)) + 
+  geom_boxplot()+
+  scale_y_continuous("dr", breaks= seq(0,300, by=.5))+
+  theme(legend.position="none")
+
+#z
+zSL <- ggplot(data=data, aes(Prediction,z,fill=Prediction)) + 
+  geom_boxplot()+
+  scale_y_continuous("z", breaks= seq(0,300, by=.5))+
+  theme(legend.position="none")
+
+#gra
+graSL <- ggplot(data=data, aes(Prediction,gra,fill=Prediction)) + 
+  geom_boxplot()+
+  scale_y_continuous("gra", breaks= seq(0,300, by=.5))+
+  theme(legend.position="none")
+
+#rev
+revSL <- ggplot(data=data, aes(Prediction,rev,fill=Prediction)) + 
+  geom_boxplot()+
+  scale_y_continuous("rev", breaks= seq(0,300, by=.5))+
+  theme(legend.position="none")
+
+#alt
+altSL <- ggplot(data=data, aes(Prediction,alt,fill=Prediction)) + 
+  geom_boxplot()+
+  scale_y_continuous("alt", breaks= seq(0,300, by=.5))+
+  theme(legend.position="none")
+
+# Plot all density visualizations
+grid.arrange(willSL + ggtitle(""),
+             gasSL + ggtitle(""),
+             dealSL + ggtitle(""),
+             meterSL + ggtitle(""),
+             pleaseSL + ggtitle(""),
+             attachedSL + ggtitle(""),
+             daySL + ggtitle(""),
+             onlySL + ggtitle(""),
+             httpSL + ggtitle(""),
+             volumeSL + ggtitle(""),
+             contractSL + ggtitle(""),
+             texasSL + ggtitle(""),
+             nomSL + ggtitle(""),
+             questionsSL + ggtitle(""),
+             changeSL + ggtitle(""),
+             thanksSL + ggtitle(""),
+             moneySL + ggtitle(""),
+             rateSL + ggtitle(""),
+             bestSL + ggtitle(""),
+             houstonSL + ggtitle(""),
+             febSL + ggtitle(""),
+             pricesSL + ggtitle(""),
+             moveSL + ggtitle(""),
+             neonSL + ggtitle(""),
+             norSL + ggtitle(""),
+             drSL + ggtitle(""),
+             zSL + ggtitle(""),
+             graSL + ggtitle(""),
+             revSL + ggtitle(""),
+             altSL + ggtitle(""),
+             nrow = 5,
+             top = textGrob("Electricity data Density Plot", 
+                            gp=gpar(fontsize=11))
+)  
+
+
+end.rcode-->
+
+
+
+<!--begin.rcode 
+##Logistic regression model
+## create model
+glm.fits = glm(formula = Prediction ~ ., data = data, family = "binomial")
+
+summary(glm.fits)
+
+coef(glm.fits)
+
+summary(glm.fits)$coef
+
+glm.probs=predict(glm.fits,type="response")
+glm.probs[1:10]
+
+## create predictions dataset
+#glm.preds = as.factor(ifelse(glm.probs > 0.5, "spam", "antispam"))
+glm.pred=rep("non-spam",5172)
+glm.pred[glm.probs>.5]="spam"
+table(glm.pred,data$Prediction)
+#Confusion Matrix not working, throwing error
+#ConfusionMatrix(glm.pre, data$Prediction)
+glm_correctness = mean(glm.pred==data$Prediction)
+glm_correctness
+
+end.rcode-->
+
+
+
+<!--begin.rcode 
+###Train dataset and Held out dataset
+set.seed(1)
+smp_siz = floor(0.75*nrow(data)) 
+train_ind = sample(seq_len(nrow(data)),size = smp_siz)  
+train =data[train_ind,] 
+test=data[-train_ind,]
+end.rcode-->
+
+
+
+<!--begin.rcode 
+glm.fits2 = glm(formula = Prediction ~ ., data = train, family = "binomial")
+summary(glm.fits2)
+coef(glm.fits2)
+summary(glm.fits2)$coef
+glm.probs2=predict(glm.fits2,test,type="response")
+glm.probs2[1:10]
+dim(test)
+
+
+glm.pred2=rep("non-spam",1293)
+glm.pred2[glm.probs2>.5]="spam"
+table(glm.pred2,test$Prediction)
+#not working, throwing error
+#ConfusionMatrix(glm.pre, data$Prediction)
+glm_correctness2 = mean(glm.pred2==test$Prediction)
+glm_correctness2
+end.rcode-->
+
+
+
+<!--begin.rcode 
+#Linear Discriminant Analysis
+require(MASS)
+#lda.fit=lda(stabf~tau1+tau2+tau3+tau4+p2+p3+p4+g1+g2+g3+g4,data=train)
+lda.fit = lda(Prediction ~ ., data = train)
+#lda.fit=lda(stabf~tau1+tau2+tau3+tau4+p2+p3+p4+g1+g2+g3+g4,data=train)
+lda.fit
+
+plot(lda.fit)
+
+lda.pred=predict(lda.fit, test)
+
+names(lda.pred)
+
+lda.class=lda.pred$class
+table(lda.class,test$Prediction)
+
+lda_correctness=mean(lda.class==test$Prediction)
+lda_correctness
+
+
+end.rcode-->
+
+
+
+
+<!--begin.rcode 
+#QDA Not working
+
+end.rcode-->
+
+
+
+<!--begin.rcode 
+#K-Nearest Neighbors
+library(class)
+set.seed(1)
+
+##normalization function is created
+nor <-function(x) { (x -min(x))/(max(x)-min(x))   }
+
+##Run nomalization on first 20 coulumns of dataset because they are the predictors
+data_norm <- as.data.frame(lapply(data[,c(1:30)], nor))
+head(data_norm)
+#1,2,3,4,5,6,7,8,9,10,11,12,13,14,15,16,17,18,19,20,21,22,23,24,25,26,27,28,29,30
+
+train2 <- sample(1:nrow(data), 0.75 * nrow(data)) 
+
+
+##extract training set
+data_train <- data_norm[train2,] 
+
+##extract testing set
+data_test <- data_norm[-train2,] 
+
+##extract 31st column of train dataset because it will be used as 'cl' argument in knn function.
+data_target_category <- data[train2,31, drop = TRUE]
+
+##extract 31st column if test dataset to measure the accuracy
+data_test_category <- data[-train2,31, drop = TRUE]
+
+
+end.rcode-->
+
+
+
+<!--begin.rcode 
+set.seed(1)
+##run knn function
+#cl = train_labels[,1, drop = TRUE]
+knn.pred <- knn(train = data_train, test = data_test, cl=data_target_category, k=1)
+##create confusion matrix
+table(knn.pred, data_test_category)
+
+knn_1 = mean(knn.pred==data_test_category)
+knn_1
+
+end.rcode-->
+
+
+
+<!--begin.rcode 
+set.seed(1)
+##run knn function
+knn.pred <- knn(data_train,data_test,cl=data_target_category,k=5)
+##create confusion matrix
+table(knn.pred,data_test_category)
+
+knn_5=mean(knn.pred==data_test_category)
+knn_5
+
+
+end.rcode-->
+
+
+
+<!--begin.rcode 
+###Comparing Logistic regression, LDA, QDA and KNN result
+#data.frame(Logistic = glm_correctness, LDA = lda_correctness, QDA = qda_correctness, Knn1 = knn_1, Knn5 = knn_5)
+data.frame(Logistic = glm_correctness, LDA = lda_correctness, Knn1 = knn_1, Knn5 = knn_5)
+
+end.rcode-->
+
+
+
+
+<!--begin.rcode 
+###Validation set Approach
+set.seed(3)
+smp_siz = floor(0.5*nrow(data)) 
+train_ind = sample(seq_len(nrow(data)),size = smp_siz)  
+trainVali =data[train_ind,] 
+validationSet=data[-train_ind,]
+train_model=glm(formula = Prediction ~ ., family = binomial,data = trainVali)
+
+end.rcode-->
+
+
+<!--begin.rcode 
+glm.probs=predict(train_model,validationSet,type = "response")
+#cont = contrasts(train$Prediction)
+glm.pred=rep("non-spam",2586)
+glm.pred[glm.probs>.5]="spam"
+tlb = table(glm.pred,validationSet$Prediction)
+mean(glm.pred!=validationSet$Prediction)
+
+end.rcode-->
+
+<!--begin.rcode 
+#poly() function to estimate the validation error rate for the quadratic
+#quadratic
+train_model2=glm(Prediction~poly((will+gas+deal+meter+please+attached+day+only+http+volume+contract+texas+nom+questions+change+thanks+money+rate+best+houston+feb+prices+move+neon+nor+dr+z+gra+rev+alt),2), family = binomial,data = trainVali)
+glm.probs2=predict(train_model2,validationSet,type = "response")
+#cont2 = contrasts(train$Prediction)
+glm.pred2=rep("non-spam",2586)
+glm.pred2[glm.probs2>.5]="spam"
+tlb2 = table(glm.pred2,validationSet$Prediction)
+mean(glm.pred2!=validationSet$Prediction)
+end.rcode-->
+
+
+
+
+<!--begin.rcode 
+#cubic
+train_model3=glm(Prediction~poly((will+gas+deal+meter+please+attached+day+only+http+volume+contract+texas+nom+questions+change+thanks+money+rate+best+houston+feb+prices+move+neon+nor+dr+z+gra+rev+alt),3), family = binomial,data = trainVali)
+glm.probs3=predict(train_model3,validationSet,type = "response")
+glm.pred3=rep("non-spame",2586)
+glm.pred3[glm.probs3>.5]="spam"
+tlb3 = table(glm.pred3,validationSet$Prediction)
+mean(glm.pred3!=validationSet$Prediction)
+
+end.rcode-->
+
+<!--begin.rcode 
+
+###LOOCV
+
+library(boot)
+# Cost function for a binary classifier suggested by boot package
+cost <- function(r, pi = 0) mean(abs(r-pi) > 0.5)
+cv.error=rep(0,3)
+for(i in 1:3){
+  model=glm(Prediction~poly((will+gas+deal+meter+please+attached+day+only+http+volume+contract+texas+nom+questions+change+thanks+money+rate+best+houston+feb+prices+move+neon+nor+dr+z+gra+rev+alt),i), family = binomial, data = data)
+  cv.error[i]=cv.glm(data,model,cost=cost)$delta[1]
+}
+cv.error
+
+
+end.rcode-->
+
+
+
+<!--begin.rcode fig.width=10, fig.height=10
+# Histogram of the Test Error
+hist(cv.error,xlab='Test Error',ylab='Freq',main='Test Error LOOCV',
+     col='cyan',border='blue',density=30)
+
+end.rcode-->
+
+
+
+
+<!--begin.rcode 
+
+##K-fOLD Cross-Validation
+#K=5
+set.seed(17)
+cv.error.5=rep(0,5)
+for(i in 1:5){
+  model=glm(Prediction~poly((will+gas+deal+meter+please+attached+day+only+http+volume+contract+texas+nom+questions+change+thanks+money+rate+best+houston+feb+prices+move+neon+nor+dr+z+gra+rev+alt),i), family = binomial, data = data)
+  cv.error.5[i]=cv.glm(data,model,K=5,cost=cost)$delta[1]
+}
+cv.error.5
+
+
+end.rcode-->
+
+
+
+<!--begin.rcode fig.width=10, fig.height=10
+# Histogram of the Test Error
+hist(cv.error.5,xlab='Test Error',ylab='Freq',main='Test Error LOOCV',
+     col='cyan',border='blue',density=30)
+
+end.rcode-->
+
+
+
+<!--begin.rcode 
+
+
+#K-10
+set.seed(17)
+cv.error.10=rep(0,5)
+for(i in 1:5){
+  model=glm(Prediction~poly((will+gas+deal+meter+please+attached+day+only+http+volume+contract+texas+nom+questions+change+thanks+money+rate+best+houston+feb+prices+move+neon+nor+dr+z+gra+rev+alt),i), family = binomial, data = data)
+  cv.error.10[i]=cv.glm(data,model,K=10,cost=cost)$delta[1]
+}
+cv.error.10
+
+
+end.rcode-->
+
+
+
+<!--begin.rcode fig.width=10, fig.height=10
+# Histogram of the Test Error
+hist(cv.error.10,xlab='Test Error',ylab='Freq',main='Test Error LOOCV',
+     col='cyan',border='blue',density=30)
+
+end.rcode-->
+
+
+
+
+
+<!--begin.rcode 
+
+###Bootstrap
+
+# define training control
+train_control <- trainControl(method="boot", number=100)
+# train the model
+model <- train(Prediction~., data=data, trControl=train_control, method="glm")
+# summarize results
+print(model)
+
+set.seed(1)
+boot.fn=function(data,index){
+  model=glm(Prediction~., family = binomial, data = data,subset = index)
+  return(coef(model))
+}
+
+boot.fn(data,sample(100,100,replace = T))
+
+boot(data,boot.fn,1000)
+
+end.rcode-->
+
+
+<!--begin.rcode 
+###Model Selection and Regularization
+#Best subset selection
+
+library(leaps)
+regfit.full = regsubsets(Prediction~.,data)
+summary(regfit.full)
+
+
+library(leaps)
+regfit.full = regsubsets(Prediction~.,data,nvmax = 30)
+summary(regfit.full)
+
+names(summary(regfit.full))
+
+reg.summary=summary(regfit.full)
+
+par(mfrow=c(2,2))
+which.min(reg.summary$bic)
+
+
+end.rcode-->
+
+
+
+<!--begin.rcode fig.width=10, fig.height = 10
+
+plot(reg.summary$bic, xlab = "Number of Variables", ylab = "BIC", type = "l")
+points(22, reg.summary$bic[22], col = "red", cex = 2, pch = 20)
+
+end.rcode-->
+
+
+<!--begin.rcode fig.width=10, fig.height = 10
+
+plot(regfit.full,scale ="bic")
+
+end.rcode-->
+
+<!--begin.rcode 
+coef(regfit.full,22)
+
+glm.fits3=glm(Prediction~will+deal+please+attached+day+only+http+volume+texas+nom+questions+thanks+money+best+feb+prices+move+neon+dr+z+gra+rev+alt, family = binomial, data = train)
+glm.probs3=predict(glm.fits3,test,type = "response")
+glm.pred3=rep("non-spam",5172)
+glm.pred3[glm.probs3>.5]="spam"
+table(glm.pred3,data$Prediction)
+
+
+mean(glm.pred3==test$Prediction)
+end.rcode-->
+
+
+<!--begin.rcode 
+
+##Stepwise Selection
+#Forward Stepwise Selection
+
+
+regfit.full = regsubsets(Prediction~.,data,nvmax = 30, method = "forward")
+summary(regfit.full)
+
+end.rcode-->
+
+
+
+<!--begin.rcode 
+#Backward Stepwise Selection
+
+#The regsubsets() function can also be used for backward stepwise selection, 
+#by adding the parameter method=“backward”.
+
+regfit.full = regsubsets(Prediction~.,data,nvmax = 30, method = "backward")
+summary(regfit.full)
+
+end.rcode-->
+
+
+
+
+
+<!--begin.rcode 
+
+##Shrinkage Methods
+#For shrinkage methods we carry out two approaches. Namely, regression model and lasso models. We use 
+#glmnet R package to perform both ridge regression model and lasso models.
+
+
+#Ridge regression
+#We use the glmnet() function in R with parameter alpha=0 to fit a ridge regression model. We make use 
+#of other R functions to prepare the data for ridge regression. We also convert the outcome class to 
+#numerical variable.
+
+library(caret)
+library(glmnet)
+library(magrittr) 
+library(dplyr) 
+
+set.seed(123)
+training.samples <- data$Prediction %>% 
+  createDataPartition(p = 0.8, list = FALSE)
+train.data  <- data[training.samples, ]
+test.data <- data[-training.samples, ]
+
+# Find the best lambda using cross-validation
+set.seed(123) 
+# Dumy code categorical predictor variables
+x = model.matrix(Prediction~., train.data)[,-1]
+# Convert the outcome (class) to a numerical variable
+y = ifelse(train.data$Prediction == "spam", 1, 0)
+cv.ridge <- cv.glmnet(x, y, alpha = 0, family = "binomial")
+
+#Next, we fit a model using our ridge regression value and then observe the performance accuracy.
+
+# Fit the final model on the training data
+model <- glmnet(x, y, alpha = 1, family = "binomial",
+                lambda = cv.ridge$lambda.min)
+
+# Display regression coefficients
+coef(model)
+
+# Make predictions on the test data
+x.test <- model.matrix(Prediction ~., test.data)[,-1]
+probabilities <- model %>% predict(newx = x.test)
+predicted.classes <- ifelse(probabilities > 0.5, "spam", "non-spam")
+
+# Model accuracy
+observed.classes <- test.data$Prediction
+mean(predicted.classes == observed.classes)
+
+end.rcode-->
+
+
+<!--begin.rcode fig.width=15, fig.height=15
+plot(cv.ridge)
+end.rcode-->
+
+
+
+<!--begin.rcode 
+
+##The Lasso
+#Lasso works similar to ridge regression with the difference that lasso has penalty of 
+#the sum of the absolute values of the coefficients. The penalty for ridge regression is 
+#the sum of the squares of the cofficients. We will use glmnet also for lasso but with alpha parameter set to 1.
+
+library(magrittr) 
+library(dplyr)    
+library(caret)
+
+set.seed(123)
+training.samples <- data$Prediction %>% 
+  createDataPartition(p = 0.8, list = FALSE)
+train.data  <- data[training.samples, ]
+test.data <- data[-training.samples, ]
+
+# Find the best lambda using cross-validation
+set.seed(123) 
+# Dumy code categorical predictor variables
+x <- model.matrix(Prediction~., train.data)[,-1]
+# Convert the outcome to a numerical variable
+y <- ifelse(train.data$Prediction == "spam", 1, 0)
+
+
+cv.lasso <- cv.glmnet(x, y, alpha = 1, family = "binomial")
+# Fit the final model on the training data
+model <- glmnet(x, y, alpha = 1, family = "binomial",
+                lambda = cv.lasso$lambda.min)
+# Display regression coefficients
+coef(model)
+
+# Make predictions on the test data
+x.test <- model.matrix(Prediction ~., test.data)[,-1]
+probabilities <- model %>% predict(newx = x.test)
+predicted.classes <- ifelse(probabilities > 0.5, "spam", "non-spam")
+# Model accuracy
+observed.classes <- test.data$Prediction
+mean(predicted.classes == observed.classes)
+
+#From above, using lasso gave an accuracy of 88.58% which is better than ridge regression 
+#with accuracy of 82.2%.
+
+
+set.seed(123)
+cv.lasso <- cv.glmnet(x, y, alpha = 1, family = "binomial")
+plot(cv.lasso)
+
+end.rcode-->
+
+
+
+<!--begin.rcode 
+##Dimension Reduction Methods
+#There are two dimension reduction methods we carry out in this session. These are methods 
+#are principal components regression and partial least squares method.
+
+#Principal Components Regression
+#Principal components regression (PCT) can be performed using the prcomp() function in R.
+
+data.pr <- prcomp(data[c(1:30)], center = TRUE, scale = TRUE)
+summary(data.pr)
+end.rcode-->
+
+
+
+<!--begin.rcode fig.width=15, fig.height=15
+screeplot(data.pr, type = "l", npcs = 31, main = "Screeplot of the first 31 PCs")
+abline(h = 1, col="red", lty=5)
+legend("topright", legend=c("Eigenvalue = 1"),
+       col=c("red"), lty=5, cex=0.6)
+
+
+
+end.rcode-->
+
+
+
+<!--begin.rcode fig.width=15, fig.height=15
+cumpro <- cumsum(data.pr$sdev^2 / sum(data.pr$sdev^2))
+plot(cumpro[0:31], xlab = "PC #", ylab = "Amount of explained variance", main = "Cumulative variance plot")
+abline(v = 11, col="blue", lty=5)
+abline(h = 0.88759, col="blue", lty=5)   
+
+end.rcode-->
+
+
+
+<!--begin.rcode fig.width=15, fig.height=15
+plot(data.pr$x[,1],data.pr$x[,2], xlab="PC1 (44.3%)", ylab = "PC2 (19%)", main = "PC1 / PC2 - plot")
+end.rcode-->
+
+
+
+
+<!--begin.rcode fig.width=15, fig.height=15
+
+#Let us include the response variable in the plot and see how it looks.
+
+library("factoextra")
+fviz_pca_ind(data.pr, geom.ind = "point", pointshape = 21, 
+             pointsize = 2, 
+             fill.ind = data$Prediction, 
+             col.ind = "black", 
+             palette = "jco", 
+             addEllipses = TRUE,
+             label = "var",
+             col.var = "black",
+             repel = TRUE,
+             legend.title = "Prediction") +
+  ggtitle("2D PCA-plot from 30 feature dataset") +
+  theme(plot.title = element_text(hjust = 0.5))
+
+end.rcode-->
+
+
+
+
+<!--begin.rcode 
+
+#Partial Least Squares
+#To carry out PLS we use of caret package. We will start by preprocessing by removing the 
+#zero variance predictors, center and scale all the remaining predictors using the preProc argument. 
+#We train the PLS model and then check the cross-validation profile.
+
+set.seed (1)
+dataPLS = data
+dataPLS$class = factor(dataPLS$Prediction)
+# Compile cross-validation settings
+set.seed(100)
+myfolds <- createMultiFolds(dataPLS$class, k = 5, times = 10)
+control <- trainControl("repeatedcv", index = myfolds, selectionFunction = "oneSE")
+
+# Train PLS model
+mod1 <- train(Prediction ~ ., data = dataPLS,
+              method = "pls",
+              metric = "Accuracy",
+              tuneLength = 20,
+              trControl = control,
+              preProc = c("zv","center","scale"))
+
+
+end.rcode-->
+
+
+
+<!--begin.rcode fig.width=15, fig.height=15
+plot(mod1)
+
+end.rcode-->
+
+
+
+<!--begin.rcode fig.width=15, fig.height=15
+plot(varImp(mod1), 25, main = "PLS-DA")
+
+
+end.rcode-->
+
+
+
+<!--begin.rcode fig.width=15, fig.height=15
+#Generalized Additive Models
+#Generalized additive models (GAMs) presents framwork to extending a standard linear model by 
+#allowing non-linear functions of each variables while maintaining additivity.
+
+#We use the gam() function in the gam package in R. We are going to fit a logistic regression Model 
+#using GAMs for probabilities of the Binary response values. One important feature of gam is its ability 
+#to allow non-linearity on multiple variables at the sametime. GAM can be used with other non-linear functions.
+
+#We run gam function on our data set. The We fit the model using smoothing splines.
+library(gam)
+
+#logistic Regression Model
+logitgam1<-gam(I(Prediction) ~ s(will,df=4) + s(gas,df=4) + s(deal,df=4) + s(meter,df=4) + s(please,df=4) +s(attached,df=4)+s(day,df=4) + s(only,df=4) + s(http,df=4) + s(volume,df=4) + s(contract,df=4) + s(texas,df=4) + s(nom,df=4)+ s(questions,df=4)+ s(change,df=4)+ s(thanks,df=4)+ s(money,df=4)+ s(rate,df=4)+ s(best,df=4)+ s(houston,df=4)+ s(feb,df=4)+ s(prices,df=4)+ s(move,df=4)+ s(neon,df=4)+ s(nor,df=4)+ s(dr,df=4)+ s(z,df=4)+ s(gra,df=4)+ s(rev,df=4)+ s(alt,df=4),data=data,family=binomial)
+
+plot(logitgam1,se=T)
+
+end.rcode-->
+
+
+
+
+<!--begin.rcode 
+
+##Tree-Based methods
+#Tree-based methods involve segmenting the predictor space into a number of simple regions. Bsed on 
+#the nature of our data set, we will be using tree-based methods for classifiction.
+
+#Fitting Classification Trees
+#The tree library is used to construct classification trees in R. We will use these methods
+#on our data set.
+
+library(tree)
+tree.data=tree(Prediction~.,data)
+summary(tree.data)
+
+end.rcode-->
+
+
+
+<!--begin.rcode fig.width=15, fig.height=15
+
+plot(tree.data)
+text(tree.data,pretty = 0)
+
+
+end.rcode-->
+
+
+
+
+
+
+<!--begin.rcode 
+tree.data
+
+#The above code shows the number of observations in the branch, the deviance, the overall prediction for 
+#the branch (stable or unstable), and the fraction of observations in that branch that takes one values of 
+#yes and no. The brances that lead to terminal nodes are indicated using asterisks.
+
+#To evaluate the performance of the classification tree on the data, we train the tree on the train data and 
+#estimate the test error using the test data.
+
+set.seed(2)
+train=sample(1:nrow(data),3879)
+data.test = data[-train,]
+Prediction.test = data$Prediction[-train]
+tree.data=tree(Prediction~.,data,subset = train)
+tree.pred=predict(tree.data,data.test,type = "class")
+table(tree.pred,Prediction.test)
+
+
+dt =mean(tree.pred==Prediction.test)
+dt
+
+#We split the observations into trainging set and test set. Build the tree using the training set, 
+#and evaluate the performance on the test data. The predict() fucntion is used for this purpose. 
+#This procedure gave 82.2% correct predictions of the locations of the test data set.
+
+#Next, we carry out pruning of the tree to see if there can be improvement on the tree. 
+#We use FUN=prune.misclass in order to indicate that we want the classification error rate to guide 
+#the cross-validation and pruning process, rather than the default for the cv.tree() function, which is 
+#deviance.
+
+
+set.seed(3)
+cv.data=cv.tree(tree.data,FUN=prune.misclass)
+names(cv.data)
+
+cv.data
+
+
+end.rcode-->
+
+
+
+
+<!--begin.rcode fig.width=15, fig.height=15
+par(mfrow=c(1,2))
+plot(cv.data$size,cv.data$dev, type = "b")
+plot(cv.data$k,cv.data$dev, type = "b")
+
+end.rcode-->
+
+
+
+<!--begin.rcode fig.width=15, fig.height=15
+prune.data=prune.misclass(tree.data,best = 14)
+plot(prune.data)
+text(prune.data,pretty=0)
+
+end.rcode-->
+
+
+
+<!--begin.rcode 
+#To find out how well the pruned tree perform on the test data set, we apply the predict() function.
+
+tree.pred2=predict(prune.data,data.test,type = "class")
+table(tree.pred2,Prediction.test)
+
+dt_pruned =mean(tree.pred2==Prediction.test)
+dt_pruned
+
+end.rcode-->
+
+
+<!--begin.rcode 
+##Bagging and Random Forests
+#We apply bagging and random forests to our data set, using the randomForest oackage in R. 
+#Bagging is a speacil case of a random forest with m=p. RandomForest() function in R can be used for 
+#both random forests and bagging.
+
+library("randomForest")
+
+set.seed(1)
+bag.data=randomForest(Prediction~.,data,subset=train,mtry=30,importance=TRUE)
+bag.data
+
+#The argument mtry=30 to indicates that all 30 predictors should be considered for each split of the tee. 
+#Below, We check how well the bagged model perform on the test set.
+
+
+tree.pred_rf = predict(bag.data,data.test,type = "class")
+table(tree.pred_rf,Prediction.test)
+
+tree_rf =mean(tree.pred_rf==Prediction.test)
+tree_rf
+
+#The misclassification rate is 11.83%, in others words the accuracy is 88.17%. 
+#This performed better than using an optimally-pruned single tree.
+
+#To grow randomForest works in similar way as bagging, except that a smaller value is used for 
+#the mtry argument. By default, random() uses SqrtRoot of P when building a random forest of classification 
+#trees. We use mtry = 5.
+
+set.seed(1)
+rf.data=bag.data=randomForest(Prediction~.,data,subset=train,mtry=5,importance=TRUE)
+tree.pred=predict(rf.data,data.test,type = "class")
+table(tree.pred,Prediction.test)
+
+tree_rf_mtry5 =mean(tree.pred==Prediction.test)
+tree_rf_mtry5
+
+#The accuracy is 90.1%; this shows that random forests yield an improvement over bagging in this case.
+
+#Below, we use the importance() function, to see the importance of each variable.
+
+importance(rf.data)
+
+#From the above procedure, two measure of variable of importance are mean deacreased accuracy 
+#and mean decreased gini.Plots of these measures will be produced below.
+
+end.rcode-->
+
+
+<!--begin.rcode fig.width=15, fig.height=15
+
+varImpPlot(rf.data)
+
+end.rcode-->
+
+
+<!--begin.rcode fig.width=15, fig.height=15
+
+##Boosting
+
+#The gbm() function within glm package in R will be used to fit boosted classification trees to our data set.
+
+library(gbm)
+
+set.seed(1)
+data = read.csv("email_v2.csv")
+train=sample(1:nrow(data),3879)
+data.test = data[-train,]
+Prediction.test = data$Prediction[-train]
+
+boost.data=gbm(Prediction~.,data[train,],distribution = "bernoulli",n.trees = 2586, interaction.depth = 4)
+
+#The above procedure was used to fit boosted classification tree to the data set. 
+#We ran gmb() with option distribution=“bernoulli” for a binary classification problem. The argument 
+#n.trees=2586 indictates we wanted 2586 trees and the option interaction.depth=4 limits the depth of each tree.
+
+summary(boost.data)
+
+#From above procedure, the variables are listed in the descending order of importance.
+
+par(mfrow=c(1,2))
+plot(boost.data,i='http')
+
+plot(boost.data,i='z')
+
+#In the above procedure, we produced partial dependence plots for the two most important variables. 
+#These ilustrate the marginal effect of the selected variables on the response after integrating out 
+#the other variable.
+
+
+#Next, We use the boosted model to predict stabf on the test set.
+
+yhat.boost=predict(boost.data,data.test,type = "response",n.trees = 2586)
+mean(yhat.boost==Prediction.test)
+
+#The accuracy is 100%.This is perfect and performs better than random forest and bagging.
+
+#In the above procedure we used the default lambda which is 0.1. I will run the procedure again to make 
+#use of lambda as 0.2.
+
+boost.data=gbm(Prediction~.,data[train,],distribution = "bernoulli",n.trees = 2586, interaction.depth = 4, shrinkage = 0.2, verbose = F)
+yhat.boost=predict(boost.data,data.test,type = "response",n.trees = 2586)
+mean(yhat.boost==Prediction.test)
+end.rcode-->
+
+
+
+<!--begin.rcode 
+##Support Vector Machine
+
+#Support vector machine main objective is to find a hyperplane in an N-dimensional space that distinctly 
+#classifies the data points. There are many possible hyperplanes that could be chosen to separte the two classes. In this project, our objective is to find a plane that has the maximum margin.
+
+#We use the svm() function in e1071 package in R. We use the training data to fit the model, 
+#and the testing data to test the model.
+
+library(e1071)
+library(magrittr)
+
+set.seed(1)
+smp_siz = floor(0.75*nrow(data)) 
+train_ind = sample(seq_len(nrow(data)),size = smp_siz)  
+train =data[train_ind,] 
+test=data[-train_ind,]
+
+model_svm <- svm(Prediction ~., data=train, cost = 1000, gamma = 0.01)
+model_svm
+
+#From the above procedure, the cost parameter is used to penalise the model for misclassification. 
+#We set the cost to be 100. We fitted the model using svm. Below, we run predict() function pn our fitted 
+#model using the test data, and then look at its accurracy.
+
+test_svm <- predict(model_svm, newdata = test %>% na.omit())
+yo <- test %>% na.omit()
+#table(test_svm, yo$Prediction)
+
+end.rcode-->
+
+<!--begin.rcode fig.width=7, fig.height=6
+plot(cars)
+end.rcode-->
+
+<!--begin.rcode fig.width=7, fig.height=6
+plot(cars)
+end.rcode-->
+
+<!--begin.rcode fig.width=7, fig.height=6
+plot(cars)
+end.rcode-->
+
+
+</body>
+</html>
